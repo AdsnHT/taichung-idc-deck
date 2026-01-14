@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>東豐台中 IDC｜Web Deck</title>
+
+  <style>
+    :root{
+      --bg:#fff;
+
+      --fadeDur: 870ms;
+      --entryDur: 1050ms;
+      --ease: cubic-bezier(.2,.7,.2,1);
+
+      --d-title: 220ms;
+      --d-body:  400ms;
+      --d-img:   620ms;
+
+      --imgShift: 20px;
+      --safePadW: 26px;
+      --safePadH: 94px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background:var(--bg);
+      overflow:hidden;
+      font-family: system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    }
+
+    .deck{
+      position:relative;
+      width:100%;
+      height:100%;
+      display:grid;
+      place-items:center;
+    }
+
+    .slide{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity var(--fadeDur) var(--ease);
+    }
+    .slide.is-active{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .stage{
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform-origin:center center;
+    }
+    .stage.fit{
+      transform:
+        translate(-50%, -50%)
+        translateZ(0)
+        scale(var(--scale, 1));
+    }
+
+    img{ position:absolute; left:0; top:0; image-rendering:auto; }
+    .base{ width:100%; height:100%; }
+
+    .layer{
+      opacity:0;
+      transition:
+        opacity var(--entryDur) var(--ease),
+        transform var(--entryDur) var(--ease);
+      will-change: opacity, transform;
+    }
+    .layer.title{ transform: translateY(8px); }
+    .layer.body{  transform: translateY(8px); }
+    .layer.image{ transform: translateX(var(--imgShift)) scale(.98); }
+
+    /* ===== 強制重播：先瞬間回到初始，再播放 is-enter ===== */
+    .slide.replay-reset .layer,
+    .slide.replay-reset .logo-corner,
+    .slide.replay-reset .logo-center-bottom{
+      transition: none !important;
+      opacity: 0 !important;
+    }
+    .slide.replay-reset .layer.title{ transform: translateY(8px) !important; }
+    .slide.replay-reset .layer.body { transform: translateY(8px) !important; }
+    .slide.replay-reset .layer.image{ transform: translateX(var(--imgShift)) scale(.98) !important; }
+    .slide.replay-reset .logo-corner{ transform: translateY(4px) !important; }
+    .slide.replay-reset .logo-center-bottom{ transform: translateX(-50%) translateY(8px) !important; }
+
+    .slide.is-active.is-enter .layer.title{
+      opacity:1;
+      transform: translateY(0);
+      transition-delay: var(--d-title);
+    }
+    .slide.is-active.is-enter .layer.body{
+      opacity:1;
+      transform: translateY(0);
+      transition-delay: var(--d-body);
+    }
+    .slide.is-active.is-enter .layer.image{
+      opacity:1;
+      transform: translateX(0) scale(1);
+      transition-delay: var(--d-img);
+    }
+
+    /* Slide 2~8 logo */
+    .logo-corner{
+      position:absolute;
+      left: 925px;
+      top: 45px;
+      width: 120px;
+      height: auto;
+
+      z-index: 5;
+      pointer-events: none;
+
+      opacity: 0;
+      transform: translateY(4px);
+
+      transition:
+        opacity 900ms var(--ease),
+        transform 900ms var(--ease);
+      transition-delay: 400ms;
+    }
+    .slide.is-active.is-enter .logo-corner{
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Slide 9 logo */
+    .logo-center-bottom{
+      position:absolute;
+      left: 50%;
+      top: 920px;
+      width: 110px;
+      height: auto;
+
+      z-index: 5;
+      pointer-events: none;
+
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+
+      transition:
+        opacity 800ms var(--ease),
+        transform 900ms var(--ease);
+      transition-delay: 560ms;
+    }
+    .slide.is-active.is-enter .logo-center-bottom{
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* HUD */
+    .hud{
+      position:absolute;
+      left:20px;
+      right:20px;
+      bottom:18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      z-index:10;
+    }
+    .hud .left{ display:flex; gap:10px; align-items:center; }
+
+    button{
+      appearance:none;
+      border:1px solid rgba(0,0,0,.12);
+      background:rgba(255,255,255,.92);
+      border-radius:999px;
+
+      height:40px;
+      min-width:40px;
+      padding:0 12px;
+
+      font-size:14px;
+      font-weight:600;
+      cursor:pointer;
+
+      color: rgba(0,0,0,.45);
+      box-shadow:0 10px 26px rgba(0,0,0,.08);
+      backdrop-filter: blur(10px);
+    }
+    button:active{ transform: translateY(1px); }
+
+    .hint{
+      font-size:13px;
+      color: rgba(0,0,0,.22);
+      user-select:none;
+      white-space:nowrap;
+      transform: translateY(4px);
+    }
+
+    @media (max-width: 860px){
+      .hint{ display:none; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      :root{
+        --fadeDur:2ms;
+        --entryDur:2ms;
+        --d-title:0ms;
+        --d-body:0ms;
+        --d-img:0ms;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="deck" id="deck">
+
+    <!-- Slide 1 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s01_base.png" alt="" />
+        <img class="layer title" src="assets/layers/s01_title.png" alt="" style="left:139px; top:371px; width:1798px; height:229px;" />
+        <img class="layer body"  src="assets/layers/s01_body.png"  alt="" style="left:775px; top:229px; width:555px; height:81px;" />
+        <img class="layer image" src="assets/layers/s01_image.png" alt="" style="left:617px; top:195px; width:146px; height:136px;" />
+      </div>
+    </section>
+
+    <!-- Slide 2 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s04_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s04_title.png" alt="" style="left:1123px; top:250px; width:718px; height:380px;" />
+        <img class="layer body"  src="assets/layers/s04_body.png"  alt="" style="left:1139px; top:167px; width:402px; height:81px;" />
+      </div>
+    </section>
+
+    <!-- Slide 3 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s05_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s05_title.png" alt="" style="left:696px; top:425px; width:607px; height:242px;" />
+        <img class="layer body"  src="assets/layers/s05_body.png"  alt="" style="left:1224px; top:484px; width:620px; height:206px;" />
+      </div>
+    </section>
+
+    <!-- Slide 4 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s06_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s06_title.png" alt="" style="left:0px; top:361px; width:2000px; height:333px;" />
+        <img class="layer body"  src="assets/layers/s06_body.png"  alt="" style="left:468px; top:757px; width:1064px; height:141px;" />
+      </div>
+    </section>
+
+    <!-- Slide 5 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s07_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s07_title.png" alt="" style="left:132px; top:470px; width:671px; height:162px;" />
+        <img class="layer body"  src="assets/layers/s07_body.png"  alt="" style="left:1046px; top:630px; width:784px; height:121px;" />
+      </div>
+    </section>
+
+    <!-- Slide 6 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s08_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s08_title.png" alt="" style="left:1090px; top:233px; width:748px; height:295px;" />
+        <img class="layer body"  src="assets/layers/s08_body.png"  alt="" style="left:1106px; top:546px; width:732px; height:152px;" />
+        <img class="layer image" src="assets/layers/s08_image.png" alt="" style="left:166px; top:216px; width:811px; height:811px;" />
+      </div>
+    </section>
+
+    <!-- Slide 7 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s02_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s02_title.png" alt="" style="left:139px; top:250px; width:984px; height:380px;" />
+        <img class="layer body"  src="assets/layers/s02_body.png"  alt="" style="left:139px; top:630px; width:955px; height:198px;" />
+        <img class="layer image" src="assets/layers/s02_image.png" alt="" style="left:1189px; top:112px; width:672px; height:901px;" />
+      </div>
+    </section>
+
+    <!-- Slide 8 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s03_base.png" alt="" />
+        <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s03_title.png" alt="" style="left:274px; top:254px; width:1501px; height:202px;" />
+        <img class="layer body"  src="assets/layers/s03_body.png"  alt="" style="left:545px; top:870px; width:923px; height:81px;" />
+      </div>
+    </section>
+
+    <!-- Slide 9 -->
+    <section class="slide" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s09_base.png" alt="" />
+        <img class="logo-center-bottom" src="assets/brand/東豐LOGO-圈圈.png" alt="DFT Logo" />
+        <img class="layer title" src="assets/layers/s09_title.png" alt="" style="left:411px; top:322px; width:1241px; height:364px;" />
+        <img class="layer body"  src="assets/layers/s09_body.png"  alt="" style="left:704px; top:776px; width:592px; height:109px;" />
+      </div>
+    </section>
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="left">
+        <button id="prevBtn" type="button" aria-label="Previous">←</button>
+        <button id="nextBtn" type="button" aria-label="Next">→</button>
+        <button id="autoBtn" type="button" aria-label="Auto Play">Auto</button>
+      </div>
+      <div class="hint">快捷鍵：Esc 停自動播放</div>
+    </div>
+
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll("[data-slide]"));
+    let idx = 0;
+
+    function applyFit(){
+      const slide = slides[idx];
+      const stage = slide.querySelector(".stage");
+
+      stage.classList.remove("fit");
+
+      const w = parseFloat(stage.style.width)  || stage.getBoundingClientRect().width;
+      const h = parseFloat(stage.style.height) || stage.getBoundingClientRect().height;
+
+      const vv = window.visualViewport;
+      const vw = vv ? vv.width  : window.innerWidth;
+      const vh = vv ? vv.height : window.innerHeight;
+
+      const safeW = vw - 24;
+      const safeH = vh - 92;
+
+      const scale = Math.min(safeW / w, safeH / h);
+      stage.style.setProperty("--scale", scale.toFixed(6));
+      stage.classList.add("fit");
+    }
+
+    function activate(i){
+      const prev = slides[idx];
+      idx = (i + slides.length) % slides.length;
+      const next = slides[idx];
+
+      prev.classList.remove("is-enter","is-active");
+
+      next.classList.add("is-active");
+      next.classList.remove("is-enter");
+      void next.offsetWidth;           // reflow
+      next.classList.add("is-enter");
+
+      requestAnimationFrame(applyFit);
+    }
+
+    function next(){ activate(idx + 1); }
+    function prev(){ activate(idx - 1); }
+
+    // ===== Fullscreen helpers =====
+    function enterFullscreen(){
+      const el = document.documentElement;
+      if (!document.fullscreenElement && el.requestFullscreen) {
+        el.requestFullscreen().catch(()=>{});
+      }
+    }
+    function exitFullscreen(){
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(()=>{});
+      }
+    }
+
+    // ✅ 強制重播當頁（fullscreen 變更後最穩）
+    function replayCurrentSlide(){
+      const cur = slides[idx];
+      if (!cur) return;
+
+      cur.classList.remove("is-enter");
+      cur.classList.add("replay-reset");
+      void cur.offsetWidth;
+
+      requestAnimationFrame(() => {
+        cur.classList.remove("replay-reset");
+        void cur.offsetWidth;
+        cur.classList.add("is-enter");
+        requestAnimationFrame(applyFit);
+      });
+    }
+
+    // init
+    slides[0].classList.add("is-active","is-enter");
+    requestAnimationFrame(applyFit);
+
+    window.addEventListener("resize", () => requestAnimationFrame(applyFit));
+
+    document.getElementById("nextBtn").addEventListener("click", next);
+    document.getElementById("prevBtn").addEventListener("click", prev);
+
+    // ===== Auto play =====
+    let isAuto = false;
+    let autoTimer = null;
+    const AUTO_INTERVAL = 3000;
+
+    const autoBtn = document.getElementById("autoBtn");
+    autoBtn.textContent = "OFF";
+
+    autoBtn.addEventListener("click", () => {
+      isAuto ? stopAuto() : startAuto();
+    });
+
+    function startAuto(){
+      isAuto = true;
+      autoBtn.textContent = "ON";
+      autoTimer = setInterval(next, AUTO_INTERVAL);
+    }
+    function stopAuto(){
+      isAuto = false;
+      autoBtn.textContent = "OFF";
+      if (autoTimer) clearInterval(autoTimer);
+      autoTimer = null;
+    }
+
+    // ===== Single keyboard handler (no conflicts) =====
+    window.addEventListener("keydown", (e) => {
+      // ESC：停 auto + 離開全螢幕
+      if (e.key === "Escape") {
+        stopAuto();
+        exitFullscreen();
+        return;
+      }
+
+      // 非全螢幕：任何鍵先進全螢幕，並重播當頁（不翻頁）
+      if (!document.fullscreenElement) {
+        e.preventDefault();
+        enterFullscreen();
+        // fullscreenchange 也會再補一次，但這裡先排程一次更穩
+        setTimeout(replayCurrentSlide, 120);
+        return;
+      }
+
+      // 已在全螢幕才允許翻頁
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+    });
+
+    // 非全螢幕：點一下進全螢幕 + 重播
+    window.addEventListener("pointerdown", () => {
+      if (!document.fullscreenElement) {
+        enterFullscreen();
+        setTimeout(replayCurrentSlide, 120);
+      }
+    });
+
+    // fullscreen change：保險重播（只綁一次）
+    document.addEventListener("fullscreenchange", () => {
+      if (document.fullscreenElement) {
+        setTimeout(replayCurrentSlide, 120);
+      }
+      requestAnimationFrame(applyFit);
+    });
+
+    // Wheel navigate（節流）
+    let wheelLock = false;
+    window.addEventListener("wheel", (e) => {
+      if (wheelLock) return;
+      if (Math.abs(e.deltaY) < 10) return;
+      wheelLock = true;
+      setTimeout(() => wheelLock = false, 450);
+      (e.deltaY > 0) ? next() : prev();
+    }, { passive:true });
+  </script>
+</body>
+</html>
