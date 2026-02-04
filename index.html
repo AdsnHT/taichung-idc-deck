@@ -18,8 +18,16 @@
       --d-img:   620ms;
 
       --imgShift: 20px;
-      --safePadW: 26px;
-      --safePadH: 94px;
+
+      /* ===== Slide 0：圈圈「最終對齊座標」只改這裡 =====
+         這些值是以 stage(2000x1126) 的座標系為準
+      */
+      --s0-circle-left: 50%;
+      --s0-circle-top:  210px;   /* 你在 DevTools 調好就填這裡 */
+      --s0-circle-size: 720px;   /* 你在 DevTools 調好就填這裡 */
+
+      /* 如果你需要微調圈圈內圖片裁切位置，可用 object-position */
+      --s0-img-pos: 50% 50%;
     }
 
     *{ box-sizing:border-box; }
@@ -39,6 +47,7 @@
       place-items:center;
     }
 
+    /* slide 疊層 cross-fade */
     .slide{
       position:absolute;
       inset:0;
@@ -53,6 +62,7 @@
       pointer-events:auto;
     }
 
+    /* 舞台：像素級一致 + fit */
     .stage{
       position:absolute;
       left:50%;
@@ -60,15 +70,13 @@
       transform-origin:center center;
     }
     .stage.fit{
-      transform:
-        translate(-50%, -50%)
-        translateZ(0)
-        scale(var(--scale, 1));
+      transform: translate(-50%, -50%) translateZ(0) scale(var(--scale, 1));
     }
 
     img{ position:absolute; left:0; top:0; image-rendering:auto; }
     .base{ width:100%; height:100%; }
 
+    /* ===== 分段進場（Staggered Entry） ===== */
     .layer{
       opacity:0;
       transition:
@@ -79,19 +87,6 @@
     .layer.title{ transform: translateY(8px); }
     .layer.body{  transform: translateY(8px); }
     .layer.image{ transform: translateX(var(--imgShift)) scale(.98); }
-
-    /* ===== 強制重播：先瞬間回到初始，再播放 is-enter ===== */
-    .slide.replay-reset .layer,
-    .slide.replay-reset .logo-corner,
-    .slide.replay-reset .logo-center-bottom{
-      transition: none !important;
-      opacity: 0 !important;
-    }
-    .slide.replay-reset .layer.title{ transform: translateY(8px) !important; }
-    .slide.replay-reset .layer.body { transform: translateY(8px) !important; }
-    .slide.replay-reset .layer.image{ transform: translateX(var(--imgShift)) scale(.98) !important; }
-    .slide.replay-reset .logo-corner{ transform: translateY(4px) !important; }
-    .slide.replay-reset .logo-center-bottom{ transform: translateX(-50%) translateY(8px) !important; }
 
     .slide.is-active.is-enter .layer.title{
       opacity:1;
@@ -109,7 +104,7 @@
       transition-delay: var(--d-img);
     }
 
-    /* Slide 2~8 logo */
+    /* ===== Slide 2~8 logo ===== */
     .logo-corner{
       position:absolute;
       left: 925px;
@@ -133,7 +128,7 @@
       transform: translateY(0);
     }
 
-    /* Slide 9 logo */
+    /* ===== Slide 9 logo ===== */
     .logo-center-bottom{
       position:absolute;
       left: 50%;
@@ -156,6 +151,74 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* =========================================================
+       ✅ Slide 0 swap-circle（唯一一份定義，不重複）
+       核心原則：定位鎖死（left/top/size），進場只改 opacity
+       ========================================================= */
+    .swap-circle{
+      position:absolute;
+      left: 50%;
+      top:  120px;      /* 你可以留著或再微調 */
+      width: 800px;
+      height:800px;
+
+      transform: translateX(-50%);
+      border-radius: 0%;
+      overflow:hidden;
+
+      /* ✅拿掉白色圈效果 */
+      background: transparent;
+      box-shadow: none;
+
+      z-index: 6;
+      cursor: pointer;
+
+      opacity:0;
+      transition: opacity var(--entryDur) var(--ease);
+      transition-delay: 180ms;
+    }
+
+    /* 只讓它淡入，不改 transform（避免對齊好的位置被覆蓋） */
+    .slide.is-active.is-enter .swap-circle{
+      opacity:1;
+    }
+
+    /* 圓內圖片 */
+    .swap-circle img{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      transition: opacity 380ms var(--ease);
+    }
+
+    /* 預設：底圖顯示、hover圖隱藏 */
+    .swap-circle img:not(.swap-hover){ opacity:1; }
+    .swap-circle .swap-hover{ opacity:0; }
+
+    /* hover：底圖淡出、hover圖淡入 */
+    .swap-circle:hover img:not(.swap-hover){ opacity:0; }
+    .swap-circle:hover .swap-hover{ opacity:1; }
+    .swap-circle:active{
+      transform: translateX(-50%) scale(0.985);
+    }
+
+
+    /* ===== 強制重播（不動定位，只重播透明度） ===== */
+    .slide.replay-reset .layer,
+    .slide.replay-reset .logo-corner,
+    .slide.replay-reset .logo-center-bottom,
+    .slide.replay-reset .swap-circle{
+      transition: none !important;
+      opacity: 0 !important;
+    }
+    .slide.replay-reset .layer.title{ transform: translateY(8px) !important; }
+    .slide.replay-reset .layer.body { transform: translateY(8px) !important; }
+    .slide.replay-reset .layer.image{ transform: translateX(var(--imgShift)) scale(.98) !important; }
+    .slide.replay-reset .logo-corner{ transform: translateY(4px) !important; }
+    .slide.replay-reset .logo-center-bottom{ transform: translateX(-50%) translateY(8px) !important; }
 
     /* HUD */
     .hud{
@@ -211,12 +274,25 @@
         --d-body:0ms;
         --d-img:0ms;
       }
+      .swap-circle img{ transition:none; }
     }
   </style>
 </head>
 
 <body>
   <div class="deck" id="deck">
+
+    <!-- Slide 0 -->
+    <section class="slide is-active is-enter" data-slide>
+      <div class="stage" style="width:2000px;height:1126px;">
+        <img class="base" src="assets/layers/s00_base.png" alt="" />
+
+        <div class="swap-circle" aria-label="hover to switch">
+          <img src="assets/layers/s00_3.png" alt="" />
+          <img class="swap-hover" src="assets/layers/s00_2.png" alt="" />
+        </div>
+      </div>
+    </section>
 
     <!-- Slide 1 -->
     <section class="slide" data-slide>
@@ -253,7 +329,7 @@
       <div class="stage" style="width:2000px;height:1126px;">
         <img class="base" src="assets/layers/s06_base.png" alt="" />
         <img class="logo-corner" src="assets/brand/東豐LOGO-極簡-淺.png" alt="DFT Logo" />
-        <img class="layer title" src="assets/layers/s06_title.png" alt="" style="left:0px; top:361px; width:2000px; height:333px;" />
+        <img class="layer title" src="assets/layers/s06_title.png" alt="" style="left:0px; top:10px; width:2000px; height:auto;" />
         <img class="layer body"  src="assets/layers/s06_body.png"  alt="" style="left:468px; top:757px; width:1064px; height:141px;" />
       </div>
     </section>
@@ -323,12 +399,22 @@
   </div>
 
   <script>
+    // Debug: 找出破圖是哪一張（只在 Console 看，不影響功能）
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("img").forEach(img => {
+        img.addEventListener("error", () => {
+          console.error("[IMG ERROR] 無法載入：", img.getAttribute("src"));
+        });
+      });
+    });
+
     const slides = Array.from(document.querySelectorAll("[data-slide]"));
     let idx = 0;
 
     function applyFit(){
       const slide = slides[idx];
       const stage = slide.querySelector(".stage");
+      if (!stage) return;
 
       stage.classList.remove("fit");
 
@@ -347,38 +433,6 @@
       stage.classList.add("fit");
     }
 
-    function activate(i){
-      const prev = slides[idx];
-      idx = (i + slides.length) % slides.length;
-      const next = slides[idx];
-
-      prev.classList.remove("is-enter","is-active");
-
-      next.classList.add("is-active");
-      next.classList.remove("is-enter");
-      void next.offsetWidth;           // reflow
-      next.classList.add("is-enter");
-
-      requestAnimationFrame(applyFit);
-    }
-
-    function next(){ activate(idx + 1); }
-    function prev(){ activate(idx - 1); }
-
-    // ===== Fullscreen helpers =====
-    function enterFullscreen(){
-      const el = document.documentElement;
-      if (!document.fullscreenElement && el.requestFullscreen) {
-        el.requestFullscreen().catch(()=>{});
-      }
-    }
-    function exitFullscreen(){
-      if (document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen().catch(()=>{});
-      }
-    }
-
-    // ✅ 強制重播當頁（fullscreen 變更後最穩）
     function replayCurrentSlide(){
       const cur = slides[idx];
       if (!cur) return;
@@ -395,14 +449,37 @@
       });
     }
 
+    function activate(i){
+      const prev = slides[idx];
+      idx = (i + slides.length) % slides.length;
+      const next = slides[idx];
+
+      prev.classList.remove("is-enter","is-active");
+
+      next.classList.add("is-active");
+      next.classList.remove("is-enter");
+      void next.offsetWidth;
+      next.classList.add("is-enter");
+
+      requestAnimationFrame(applyFit);
+    }
+
+    function next(){ activate(idx + 1); }
+    function prev(){ activate(idx - 1); }
+
     // init
     slides[0].classList.add("is-active","is-enter");
     requestAnimationFrame(applyFit);
-
     window.addEventListener("resize", () => requestAnimationFrame(applyFit));
 
-    document.getElementById("nextBtn").addEventListener("click", next);
-    document.getElementById("prevBtn").addEventListener("click", prev);
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if (!document.fullscreenElement) return;
+      next();
+    });
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (!document.fullscreenElement) return;
+      prev();
+    });
 
     // ===== Auto play =====
     let isAuto = false;
@@ -412,11 +489,8 @@
     const autoBtn = document.getElementById("autoBtn");
     autoBtn.textContent = "OFF";
 
-    autoBtn.addEventListener("click", () => {
-      isAuto ? stopAuto() : startAuto();
-    });
-
     function startAuto(){
+      if (!document.fullscreenElement) return;
       isAuto = true;
       autoBtn.textContent = "ON";
       autoTimer = setInterval(next, AUTO_INTERVAL);
@@ -428,48 +502,77 @@
       autoTimer = null;
     }
 
-    // ===== Single keyboard handler (no conflicts) =====
+    autoBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) return;
+      isAuto ? stopAuto() : startAuto();
+    });
+
+    // ===== Fullscreen（必須 user gesture）=====
+    function enterFullscreenByGesture(){
+      if (document.fullscreenElement) return;
+      document.documentElement.requestFullscreen()
+        .then(() => setTimeout(replayCurrentSlide, 120))
+        .catch(err => console.warn("Fullscreen failed:", err));
+    }
+
+    function exitFullscreen(){
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(()=>{});
+      }
+    }
+
+    // 點一下進全螢幕
+    window.addEventListener("pointerdown", () => {
+      if (!document.fullscreenElement) enterFullscreenByGesture();
+    });
+
+    // 鍵盤：非全螢幕先進全螢幕；全螢幕才翻頁
     window.addEventListener("keydown", (e) => {
-      // ESC：停 auto + 離開全螢幕
       if (e.key === "Escape") {
         stopAuto();
         exitFullscreen();
         return;
       }
 
-      // 非全螢幕：任何鍵先進全螢幕，並重播當頁（不翻頁）
       if (!document.fullscreenElement) {
         e.preventDefault();
-        enterFullscreen();
-        // fullscreenchange 也會再補一次，但這裡先排程一次更穩
-        setTimeout(replayCurrentSlide, 120);
+        enterFullscreenByGesture();
         return;
       }
 
-      // 已在全螢幕才允許翻頁
       if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
       if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
     });
 
-    // 非全螢幕：點一下進全螢幕 + 重播
-    window.addEventListener("pointerdown", () => {
-      if (!document.fullscreenElement) {
-        enterFullscreen();
-        setTimeout(replayCurrentSlide, 120);
-      }
-    });
-
-    // fullscreen change：保險重播（只綁一次）
     document.addEventListener("fullscreenchange", () => {
-      if (document.fullscreenElement) {
-        setTimeout(replayCurrentSlide, 120);
-      }
       requestAnimationFrame(applyFit);
+      if (document.fullscreenElement) setTimeout(replayCurrentSlide, 120);
+      else stopAuto();
     });
 
-    // Wheel navigate（節流）
+    // ===== Slide 0：點擊圈圈進下一頁 =====
+    document.addEventListener("DOMContentLoaded", () => {
+      const slide0 = document.querySelector('[data-slide]');
+      const circle = slide0?.querySelector('.swap-circle');
+
+      if (!circle) return;
+
+      circle.addEventListener('click', (e) => {
+        e.stopPropagation(); // ⛔ 不觸發全畫面 pointerdown
+        if (!document.fullscreenElement) {
+          // 尚未全螢幕：先進全螢幕，再翻頁
+          enterFullscreenByGesture();
+          setTimeout(next, 300);
+        } else {
+          next();
+        }
+      });
+    });
+
+    // Wheel navigate（只在全螢幕）
     let wheelLock = false;
     window.addEventListener("wheel", (e) => {
+      if (!document.fullscreenElement) return;
       if (wheelLock) return;
       if (Math.abs(e.deltaY) < 10) return;
       wheelLock = true;
